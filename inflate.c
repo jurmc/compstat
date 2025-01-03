@@ -10,8 +10,6 @@
 #define CHUNK 128
 
 int compute_inflated_size_from_file(char *path) {
-    printf("compute_inflated_size_from_file\n");
-
     size_t all_compressed = 0;
     size_t all_uncompressed = 0;
 
@@ -79,8 +77,8 @@ int compute_inflated_size_from_file(char *path) {
     inflateEnd(&strm);
     close(in_fd);
 
-    printf("Compressed: %zu\n", all_compressed);
-    printf("Uncompress: %zu\n", all_uncompressed);
+    printf("compute_inflated_size_from_file: Compressed: %zu\n", all_compressed);
+    printf("compute_inflated_size_from_file: Uncompress: %zu\n", all_uncompressed);
 
     return Z_OK;
 }
