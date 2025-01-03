@@ -15,8 +15,8 @@ int compute_inflated_size_from_file() {
     size_t all_compressed = 0;
     size_t all_uncompressed = 0;
 
-    FILE *in_fd = fopen(IN_PATH, "r");
-    if (in_fd == NULL) {
+    int in_fd = open(IN_PATH, 0);
+    if (in_fd < 0) {
         printf("Error opening file: %s\n", IN_PATH);
         return 1;
     }
@@ -35,17 +35,20 @@ int compute_inflated_size_from_file() {
 
     ret = inflateInit(&strm);
     if (ret != Z_OK) {
-        fclose(in_fd);
+        close(in_fd);
         return ret;
     }
 
     do {
-        strm.avail_in = fread(in, 1, CHUNK, in_fd);
+        size_t bytes_read = read(in_fd, in, CHUNK);
+        if (bytes_read < 0) {
+            (void)inflateEnd(&strm);
+            close(in_fd);
+            return Z_ERRNO;
+        }
+        strm.avail_in = bytes_read;
         all_compressed += strm.avail_in;
 
-        if (ferror(in_fd)) {
-            (void)inflateEnd(&strm);
-        }
         if (strm.avail_in == 0)
             break;
         strm.next_in = in;
@@ -62,7 +65,7 @@ int compute_inflated_size_from_file() {
                 case Z_DATA_ERROR:
                 case Z_MEM_ERROR:
                     (void)inflateEnd(&strm);
-                    fclose(in_fd);
+                    close(in_fd);
                     printf("Error inflating data from file %s\n", IN_PATH);
                     return ret;
             }
@@ -73,7 +76,7 @@ int compute_inflated_size_from_file() {
     } while (ret != Z_STREAM_END);
 
     (void)inflateEnd(&strm);
-    fclose(in_fd);
+    close(in_fd);
 
     printf("Compressed: %zu\n", all_compressed);
     printf("Uncompress: %zu\n", all_uncompressed);
