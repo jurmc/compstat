@@ -7,26 +7,17 @@
 #include <stdlib.h>
 
 #define IN_PATH "/media/sf_amj018/Downloads/book-refdoc-API.pdf.zlib"
-#define OUT_PATH "/media/sf_amj018/Downloads/book-refdoc-API.pdf.inflated"
 
 #define CHUNK 16384
 
-int main() {
-    size_t all_read = 0;
-    size_t all_write = 0;
-
-    printf("Hello, Inflate: w!\n");
+int compute_inflated_size_from_file() {
+    printf("compute_inflated_size_from_file\n");
+    size_t all_compressed = 0;
+    size_t all_uncompressed = 0;
 
     FILE *in_fd = fopen(IN_PATH, "r");
     if (in_fd == NULL) {
         printf("Error opening file: %s\n", IN_PATH);
-        return 1;
-    }
-
-    FILE *out_fd = fopen(OUT_PATH, "w");
-    if (out_fd == NULL) {
-        printf("Error opening file: %s\n", OUT_PATH);
-        fclose(in_fd);
         return 1;
     }
 
@@ -45,13 +36,12 @@ int main() {
     ret = inflateInit(&strm);
     if (ret != Z_OK) {
         fclose(in_fd);
-        fclose(out_fd);
         return ret;
     }
 
     do {
         strm.avail_in = fread(in, 1, CHUNK, in_fd);
-        all_read += strm.avail_in;
+        all_compressed += strm.avail_in;
 
         if (ferror(in_fd)) {
             (void)inflateEnd(&strm);
@@ -73,25 +63,32 @@ int main() {
                 case Z_MEM_ERROR:
                     (void)inflateEnd(&strm);
                     fclose(in_fd);
-                    fclose(out_fd);
                     printf("Error inflating data from file %s\n", IN_PATH);
                     return ret;
             }
 
             have = CHUNK - strm.avail_out;
-            if (fwrite(out, 1, have, out_fd) != have || ferror(out_fd)) {
-                (void)inflateEnd(&strm);
-                printf("Error writing to file: %s\n", OUT_PATH);
-                break;
-            }
-            all_write += have;
+            all_uncompressed += have;
         } while (strm.avail_out == 0);
     } while (ret != Z_STREAM_END);
 
     (void)inflateEnd(&strm);
     fclose(in_fd);
-    fclose(out_fd);
 
-    printf("Read: %i\n", all_read);
-    printf("Written: %i\n", all_write);
+    printf("Compressed: %zu\n", all_compressed);
+    printf("Uncompress: %zu\n", all_uncompressed);
+
+    return Z_OK;
+}
+
+int compute_inflated_size_from_memory() {
+    printf("compute_inflated_size_from_memory\n");
+
+    return Z_OK;
+}
+
+int main() {
+    compute_inflated_size_from_file();
+    compute_inflated_size_from_memory();
+    return 0;
 }
