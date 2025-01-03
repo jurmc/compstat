@@ -193,7 +193,7 @@ int main() {
     if(NULL == buf) {
     }
     size_t uncompressed = compute_inflated_size_from_memory(buf, compressed);
-    //free(buf); // TODO: free allocated memory somehow
+    free(buf); // TODO: free allocated memory somehow
 
     printf("New Compressed: %zu\n", compressed);
     printf("New Uncompressed: %zu\n", uncompressed);
