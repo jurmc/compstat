@@ -106,11 +106,17 @@ int compute_inflated_size_from_memory() {
     }
     size_t file_size = statbuf.st_size;
     printf("File size: %zu\n", file_size);
-    unsigned char in[file_size];
+    unsigned char *in = malloc(file_size);
+    if (in == NULL) {
+        close(in_fd);
+        close(in_fd);
+        return Z_MEM_ERROR;
+    }
     unsigned char *in_ptr = in;
     size_t bytes_read = read(in_fd, in, file_size);
     if (bytes_read < 0) {
         close(in_fd);
+        free(in);
         return Z_ERRNO;
     }
     close(in_fd);
@@ -128,6 +134,7 @@ int compute_inflated_size_from_memory() {
 
     ret = inflateInit(&strm);
     if (ret != Z_OK) {
+        free(in);
         return ret;
     }
 
@@ -164,7 +171,7 @@ int compute_inflated_size_from_memory() {
                 case Z_DATA_ERROR:
                 case Z_MEM_ERROR:
                     (void)inflateEnd(&strm);
-                    close(in_fd);
+                    free(in);
                     printf("Error inflating data from file %s\n", IN_PATH);
                     return ret;
             }
@@ -181,6 +188,7 @@ int compute_inflated_size_from_memory() {
         in_ptr += CHUNK;
     } while (ret != Z_STREAM_END);
 
+    free(in);
     (void)inflateEnd(&strm);
 
     printf("Compressed: %zu\n", all_compressed);
