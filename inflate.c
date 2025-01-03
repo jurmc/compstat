@@ -11,8 +11,6 @@
 //#define CHUNK 16384
 #define CHUNK 128
 
-#define FILE_IN_SIZE 3393596
-
 int compute_inflated_size_from_file() {
     printf("compute_inflated_size_from_file\n");
 
@@ -101,9 +99,16 @@ int compute_inflated_size_from_memory() {
         printf("Error opening file: %s\n", IN_PATH);
         return 1;
     }
-    unsigned char in[FILE_IN_SIZE];
+    struct stat statbuf;
+    if (0 != fstat(in_fd, &statbuf)) {
+        close(in_fd);
+        return Z_ERRNO;
+    }
+    size_t file_size = statbuf.st_size;
+    printf("File size: %zu\n", file_size);
+    unsigned char in[file_size];
     unsigned char *in_ptr = in;
-    size_t bytes_read = read(in_fd, in, FILE_IN_SIZE/*CHUNK*/);
+    size_t bytes_read = read(in_fd, in, file_size);
     if (bytes_read < 0) {
         close(in_fd);
         return Z_ERRNO;
@@ -126,9 +131,15 @@ int compute_inflated_size_from_memory() {
         return ret;
     }
 
-    int bytes_remaining = FILE_IN_SIZE;
+    int bytes_remaining = file_size;
     do {
-        strm.avail_in = CHUNK;
+        //printf("Bytes remaining: %d\n", bytes_remaining);
+        if (bytes_remaining < CHUNK) {
+            strm.avail_in = bytes_remaining;
+        } else {
+            strm.avail_in = CHUNK;
+        }
+        bytes_remaining -= strm.avail_in;
         all_compressed += strm.avail_in;
 
         if (strm.avail_in == 0)
@@ -139,11 +150,11 @@ int compute_inflated_size_from_memory() {
             strm.avail_out = CHUNK;
             strm.next_out = out;
 
-//            printf("In (have: %d): ");
+            //printf("In (have: %d): ", strm.avail_in);
 //            for (int i = 0; i < strm.avail_in; i++) {
 //                printf("%02x ", strm.next_in[i]);
 //            }
-//            printf("\n");
+            //printf("\n");
 
             ret = inflate(&strm, Z_NO_FLUSH);
             assert(ret != Z_STREAM_ERROR);
