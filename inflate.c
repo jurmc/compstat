@@ -175,11 +175,6 @@ size_t read_compressed_file(char *path, unsigned char **buf) {
     }
     close(in_fd);
 
-    for (int i = 0; i < 32; i++) {
-        printf("%02x ", (*buf)[i]);
-    }
-    printf("\n");
-
     return file_size;
 }
 
