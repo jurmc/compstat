@@ -90,7 +90,7 @@ int compute_inflated_size_from_file(char *path) {
 // otherwise: error
 size_t compute_inflated_size_from_memory(unsigned char *buf, size_t buf_size) {
     size_t uncompressed_size = 0;
-    unsigned char *in_ptr = buf; // TODO: can probably be removed
+    unsigned char *in_ptr = buf;
 
     int ret;
     unsigned have;
@@ -169,7 +169,7 @@ size_t read_compressed_file(char *path, unsigned char **buf) {
         return 0;
     }
     size_t bytes_read = read(in_fd, *buf, file_size);
-    if (bytes_read < 0) { // TODO: bytes_read should be equal to file_size
+    if (bytes_read != file_size) {
         close(in_fd);
         free(buf);
         *buf = NULL;
@@ -193,7 +193,7 @@ int main() {
     if(NULL == buf) {
     }
     size_t uncompressed = compute_inflated_size_from_memory(buf, compressed);
-    free(buf); // TODO: free allocated memory somehow
+    free(buf);
 
     printf("New Compressed: %zu\n", compressed);
     printf("New Uncompressed: %zu\n", uncompressed);
