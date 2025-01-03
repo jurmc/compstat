@@ -44,7 +44,7 @@ int compute_inflated_size_from_file() {
     do {
         size_t bytes_read = read(in_fd, in, CHUNK);
         if (bytes_read < 0) {
-            (void)inflateEnd(&strm);
+            inflateEnd(&strm);
             close(in_fd);
             return Z_ERRNO;
         }
@@ -67,7 +67,7 @@ int compute_inflated_size_from_file() {
                     ret = Z_DATA_ERROR;     /* and fall through */
                 case Z_DATA_ERROR:
                 case Z_MEM_ERROR:
-                    (void)inflateEnd(&strm);
+                    inflateEnd(&strm);
                     close(in_fd);
                     printf("Error inflating data from file %s\n", IN_PATH);
                     return ret;
@@ -78,7 +78,7 @@ int compute_inflated_size_from_file() {
         } while (strm.avail_out == 0);
     } while (ret != Z_STREAM_END);
 
-    (void)inflateEnd(&strm);
+    inflateEnd(&strm);
     close(in_fd);
 
     printf("Compressed: %zu\n", all_compressed);
@@ -87,39 +87,12 @@ int compute_inflated_size_from_file() {
     return Z_OK;
 }
 
-int compute_inflated_size_from_memory() {
-    printf("compute_inflated_size_from_memory\n");
-
-    size_t all_compressed = 0;
-    size_t all_uncompressed = 0;
-    int in_fd;
-
-    in_fd = open(IN_PATH, 0);
-    if (in_fd < 0) {
-        printf("Error opening file: %s\n", IN_PATH);
-        return 1;
-    }
-    struct stat statbuf;
-    if (0 != fstat(in_fd, &statbuf)) {
-        close(in_fd);
-        return Z_ERRNO;
-    }
-    size_t file_size = statbuf.st_size;
-    printf("File size: %zu\n", file_size);
-    unsigned char *in = malloc(file_size);
-    if (in == NULL) {
-        close(in_fd);
-        close(in_fd);
-        return Z_MEM_ERROR;
-    }
-    unsigned char *in_ptr = in;
-    size_t bytes_read = read(in_fd, in, file_size);
-    if (bytes_read < 0) {
-        close(in_fd);
-        free(in);
-        return Z_ERRNO;
-    }
-    close(in_fd);
+// Retrun value:
+// > 0: success, value is computed size of inflated data
+// otherwise: error
+size_t compute_inflated_size_from_memory(unsigned char *buf, size_t buf_size) {
+    size_t uncompressed_size = 0;
+    unsigned char *in_ptr = buf; // TODO: can probably be removed
 
     int ret;
     unsigned have;
@@ -134,20 +107,17 @@ int compute_inflated_size_from_memory() {
 
     ret = inflateInit(&strm);
     if (ret != Z_OK) {
-        free(in);
-        return ret;
+        return 0;
     }
 
-    int bytes_remaining = file_size;
+    int bytes_remaining = buf_size;
     do {
-        //printf("Bytes remaining: %d\n", bytes_remaining);
         if (bytes_remaining < CHUNK) {
             strm.avail_in = bytes_remaining;
         } else {
             strm.avail_in = CHUNK;
         }
         bytes_remaining -= strm.avail_in;
-        all_compressed += strm.avail_in;
 
         if (strm.avail_in == 0)
             break;
@@ -157,12 +127,6 @@ int compute_inflated_size_from_memory() {
             strm.avail_out = CHUNK;
             strm.next_out = out;
 
-            //printf("In (have: %d): ", strm.avail_in);
-//            for (int i = 0; i < strm.avail_in; i++) {
-//                printf("%02x ", strm.next_in[i]);
-//            }
-            //printf("\n");
-
             ret = inflate(&strm, Z_NO_FLUSH);
             assert(ret != Z_STREAM_ERROR);
             switch (ret) {
@@ -170,35 +134,71 @@ int compute_inflated_size_from_memory() {
                     ret = Z_DATA_ERROR;     /* and fall through */
                 case Z_DATA_ERROR:
                 case Z_MEM_ERROR:
-                    (void)inflateEnd(&strm);
-                    free(in);
+                    inflateEnd(&strm);
                     printf("Error inflating data from file %s\n", IN_PATH);
-                    return ret;
+                    return 0;
             }
 
             have = CHUNK - strm.avail_out;
-            all_uncompressed += have;
+            uncompressed_size += have;
 
-//            printf("Out (have: %i)", have);
-//            for (int i = 0; i < have; i++) {
-//                printf("%02x ", out[i]);
-//            }
-//            printf("");
         } while (strm.avail_out == 0);
         in_ptr += CHUNK;
     } while (ret != Z_STREAM_END);
 
-    free(in);
-    (void)inflateEnd(&strm);
+    inflateEnd(&strm);
 
-    printf("Compressed: %zu\n", all_compressed);
-    printf("Uncompress: %zu\n", all_uncompressed);
+    return uncompressed_size;
+}
 
-    return Z_OK;
+size_t read_compressed_file(unsigned char **buf, char *path) {
+    *buf = NULL;
+    int in_fd = open(path, 0);
+    if (in_fd < 0) {
+        printf("Error opening file: %s\n", IN_PATH);
+        return 0;
+    }
+    struct stat statbuf;
+    if (0 != fstat(in_fd, &statbuf)) {
+        close(in_fd);
+        return 0;
+    }
+    size_t file_size = statbuf.st_size;
+    printf("File size: %zu\n", file_size);
+    *buf = malloc(file_size);
+    if (*buf == NULL) {
+        close(in_fd);
+        return 0;
+    }
+    size_t bytes_read = read(in_fd, *buf, file_size);
+    if (bytes_read < 0) { // TODO: bytes_read should be equal to file_size
+        close(in_fd);
+        free(buf);
+        *buf = NULL;
+        return 0;
+    }
+    close(in_fd);
+
+    for (int i = 0; i < 32; i++) {
+        printf("%02x ", (*buf)[i]);
+    }
+    printf("\n");
+
+    return file_size;
 }
 
 int main() {
     compute_inflated_size_from_file();
-    compute_inflated_size_from_memory();
+
+    unsigned char *buf = NULL;
+    size_t compressed = read_compressed_file(&buf, IN_PATH);
+    if(NULL == buf) {
+    }
+    size_t uncompressed = compute_inflated_size_from_memory(buf, compressed);
+    //free(buf); // TODO: free allocated memory somehow
+
+    printf("New Compressed: %zu\n", compressed);
+    printf("New Uncompressed: %zu\n", uncompressed);
+
     return 0;
 }
