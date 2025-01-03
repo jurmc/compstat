@@ -3,7 +3,8 @@
 #include <assert.h>
 
 #define IN_PATH "/media/sf_amj018/Downloads/book-refdoc-API.pdf"
-#define OUT_PATH "/media/sf_amj018/Downloads/book-refdoc-API.pdf.zlib"
+#define OUT_PATH_WITH_HDR "/media/sf_amj018/Downloads/book-refdoc-API.pdf.zlib"
+#define OUT_PATH_WO_HDR "/media/sf_amj018/Downloads/book-refdoc-API.pdf.nhdr.zlib"
 
 #define CHUNK 16384
 
@@ -19,9 +20,9 @@ int deflate_using_zlib_with_header() {
         return 1;
     }
 
-    FILE *out_fd = fopen(OUT_PATH, "w");
+    FILE *out_fd = fopen(OUT_PATH_WITH_HDR, "w");
     if (out_fd == NULL) {
-        printf("Error opening file: %s\n", OUT_PATH);
+        printf("Error opening file: %s\n", OUT_PATH_WITH_HDR);
         fclose(in_fd);
         return 1;
     }
@@ -88,6 +89,12 @@ int deflate_using_zlib_wo_header() {
     size_t all_read = 0;
     size_t all_write = 0;
 
+    // initialize deflate stream for file without header
+    // deflateInit2(&strm, level, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY);:
+    //
+    // initialize inflate stream for file without header
+    // inflateInit2(&strm, -15);
+
     printf("Hello, Deflate!\n");
 
     FILE *in_fd = fopen(IN_PATH, "r");
@@ -96,9 +103,9 @@ int deflate_using_zlib_wo_header() {
         return 1;
     }
 
-    FILE *out_fd = fopen(OUT_PATH, "w");
+    FILE *out_fd = fopen(OUT_PATH_WO_HDR, "w");
     if (out_fd == NULL) {
-        printf("Error opening file: %s\n", OUT_PATH);
+        printf("Error opening file: %s\n", OUT_PATH_WO_HDR);
         fclose(in_fd);
         return 1;
     }

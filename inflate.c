@@ -6,20 +6,18 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 
-#define IN_PATH "/media/sf_amj018/Downloads/book-refdoc-API.pdf.zlib"
-
 //#define CHUNK 16384
 #define CHUNK 128
 
-int compute_inflated_size_from_file() {
+int compute_inflated_size_from_file(char *path) {
     printf("compute_inflated_size_from_file\n");
 
     size_t all_compressed = 0;
     size_t all_uncompressed = 0;
 
-    int in_fd = open(IN_PATH, 0);
+    int in_fd = open(path, 0);
     if (in_fd < 0) {
-        printf("Error opening file: %s\n", IN_PATH);
+        printf("Error opening file: %s\n", path);
         return 1;
     }
 
@@ -69,7 +67,7 @@ int compute_inflated_size_from_file() {
                 case Z_MEM_ERROR:
                     inflateEnd(&strm);
                     close(in_fd);
-                    printf("Error inflating data from file %s\n", IN_PATH);
+                    printf("Error inflating data from file %s\n", path);
                     return ret;
             }
 
@@ -135,7 +133,7 @@ size_t compute_inflated_size_from_memory(unsigned char *buf, size_t buf_size) {
                 case Z_DATA_ERROR:
                 case Z_MEM_ERROR:
                     inflateEnd(&strm);
-                    printf("Error inflating data from file %s\n", IN_PATH);
+                    printf("Error inflating data\n");
                     return 0;
             }
 
@@ -151,11 +149,11 @@ size_t compute_inflated_size_from_memory(unsigned char *buf, size_t buf_size) {
     return uncompressed_size;
 }
 
-size_t read_compressed_file(unsigned char **buf, char *path) {
+size_t read_compressed_file(char *path, unsigned char **buf) {
     *buf = NULL;
     int in_fd = open(path, 0);
     if (in_fd < 0) {
-        printf("Error opening file: %s\n", IN_PATH);
+        printf("Error opening file: %s\n", path);
         return 0;
     }
     struct stat statbuf;
@@ -188,10 +186,10 @@ size_t read_compressed_file(unsigned char **buf, char *path) {
 }
 
 int main() {
-    compute_inflated_size_from_file();
+    compute_inflated_size_from_file("/media/sf_amj018/Downloads/book-refdoc-API.pdf.zlib");
 
     unsigned char *buf = NULL;
-    size_t compressed = read_compressed_file(&buf, IN_PATH);
+    size_t compressed = read_compressed_file("/media/sf_amj018/Downloads/book-refdoc-API.pdf.zlib", &buf);
     if(NULL == buf) {
     }
     size_t uncompressed = compute_inflated_size_from_memory(buf, compressed);
